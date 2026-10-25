@@ -2,15 +2,17 @@
 
 **Data:** 25/10/2026
 
-**Empresa:** Abstergo Industries
+**Empresa:** Rede Pulso Farma (empresa fictícia, cenário de estudo)
 
 **Responsável:** Moisés Santos de Oliveira
 
 ## Introdução
 
-Este relatório apresenta o processo de implementação de ferramentas na empresa Abstergo Industries, realizado por Moisés Santos de Oliveira. O objetivo do projeto foi elencar 3 serviços AWS, com a finalidade de realizar diminuição de custos imediatos.
+Este relatório mostra como cortar custos de nuvem na Rede Pulso Farma, uma rede de farmácias imaginada para este estudo, usando 3 serviços AWS. O objetivo é economia imediata: sem migrar sistema e sem mexer na rotina das lojas.
 
-A conta AWS foi tratada como um paciente: antes de comprar qualquer coisa nova, é preciso fazer o **exame** (descobrir onde há excesso), cuidar do **prazo de validade** (remover o que já venceu) e instalar um **termômetro** (para saber na hora quando a febre de custo aparece). Por isso os três serviços escolhidos não pedem migração nem reescrita de sistema, e dois deles não têm custo adicional pelo uso básico.
+Escolhi pensar na conta da AWS como um paciente. Primeiro o **exame**, para ver onde tem excesso. Depois o **prazo de validade**, para tirar o que já venceu. Por fim o **termômetro**, para saber na hora quando a conta "tiver febre".
+
+**Cenário imaginado:** uma rede com várias lojas, sistema de vendas e estoque rodando em servidores EC2 e backups guardados em disco. Não tenho os números reais de custo dessa rede, então não prometo percentual de economia. O foco é mostrar onde olhar e como medir.
 
 ## Descrição do Projeto
 
@@ -18,25 +20,42 @@ O projeto de implementação de ferramentas foi dividido em 3 etapas, cada uma c
 
 Etapa 1 – O exame:
 - **AWS Compute Optimizer**
-- **Foco da ferramenta:** descobrir quais servidores estão maiores do que o necessário.
-- **Descrição de caso de uso:** o Compute Optimizer analisa o uso real de CPU e memória das instâncias EC2 e recomenda um tamanho menor quando o servidor passa a maior parte do tempo ocioso. Em uma operação farmacêutica, é comum o sistema de retaguarda ter sido dimensionado para o pior dia do ano e continuar assim o ano inteiro. A recomendação sai pronta, com a economia estimada, e a troca de tamanho pode ser feita no mesmo dia. No uso básico, o serviço não tem custo adicional.
+- **Foco da ferramenta:** achar servidores maiores do que o necessário.
+- **Descrição de caso de uso:** ele olha o uso real de CPU e memória das instâncias EC2 e diz quando um servidor está sobrando. Em farmácia isso é comum: o sistema foi dimensionado para o dia de maior movimento e fica assim o ano todo. A recomendação já vem com a economia estimada. No uso básico, o serviço não tem custo adicional.
+- **Cuidado:** testar a troca primeiro em ambiente de teste e fazer fora do horário de pico. O caixa da loja não pode travar.
 
 Etapa 2 – O prazo de validade:
 - **Amazon Data Lifecycle Manager (Amazon EBS)**
-- **Foco da ferramenta:** apagar automaticamente backups (snapshots) que já passaram da validade.
-- **Descrição de caso de uso:** snapshots de disco são como medicamentos no armário: úteis enquanto estão dentro do prazo, e só ocupam espaço depois. Cada um continua sendo cobrado todo mês até que alguém o apague, e quase ninguém lembra de fazer isso. Com uma política do Data Lifecycle Manager, a empresa define quantos backups guardar (por exemplo, os últimos 7 diários e 4 semanais) e o restante é removido sozinho. Como complemento, volumes gp2 podem ser migrados para gp3, que custa até cerca de 20% menos por GB, sem trocar o servidor. O serviço em si não tem custo adicional.
-- **Observação de laboratório:** na minha própria conta de testes encontrei 2 snapshots de 30 GiB criados em março que continuavam lá meses depois, sem uso e gerando cobrança. Foi esse caso real que me levou a incluir esta etapa.
+- **Foco da ferramenta:** apagar sozinho os backups (snapshots) que já venceram.
+- **Descrição de caso de uso:** snapshot é como remédio no armário: serve dentro do prazo e depois só ocupa espaço. Cada um continua sendo cobrado todo mês até alguém apagar, e quase ninguém lembra. Com uma política do Data Lifecycle Manager, a empresa define quantos backups guardar (por exemplo, os últimos 7 diários e 4 semanais) e o resto some. Dá para somar a troca de volumes gp2 por gp3, que custa até cerca de 20% menos por GB, sem trocar o servidor. O serviço em si não tem custo adicional.
+- **Cuidado:** dado de saúde é dado sensível pela LGPD. Antes de ligar a política, combinar com o jurídico quanto tempo cada tipo de backup precisa ser guardado.
+- **Caso real:** na minha conta de testes achei 2 snapshots de 30 GiB criados em março, ainda lá meses depois, cobrando sem uso. Foi isso que me levou a incluir esta etapa.
 
 Etapa 3 – O termômetro:
 - **AWS Cost Anomaly Detection (com AWS Budgets)**
-- **Foco da ferramenta:** avisar assim que o gasto sair do padrão.
-- **Descrição de caso de uso:** o serviço aprende o padrão normal de gasto de cada serviço e manda um alerta por e-mail quando algo foge do esperado, como um ambiente de teste esquecido ligado no fim de semana ou um erro de configuração gerando tráfego. O AWS Budgets complementa com um limite mensal e avisos em 80% e 100% do orçamento. Assim, a economia das etapas anteriores não se perde sem ninguém perceber. O Cost Anomaly Detection é gratuito.
+- **Foco da ferramenta:** avisar quando o gasto sair do normal.
+- **Descrição de caso de uso:** ele aprende o padrão de gasto de cada serviço e manda alerta por e-mail quando algo foge, como um ambiente de teste esquecido ligado no fim de semana. O AWS Budgets entra com um limite mensal e avisos em 80% e 100% do orçamento. Assim a economia das etapas 1 e 2 não escapa sem ninguém ver. O Cost Anomaly Detection é gratuito.
+- **Cuidado:** definir quem recebe o alerta e quem age. Alerta sem dono vira só barulho.
 
 ## Conclusão
 
-A implementação de ferramentas na empresa Abstergo Industries tem como esperado **reduzir o gasto com servidores superdimensionados (Compute Optimizer), parar de pagar por backups vencidos (Data Lifecycle Manager) e evitar que desperdícios novos passem despercebidos (Cost Anomaly Detection)**, o que aumentará a eficiência e a produtividade da empresa. Recomenda-se a continuidade da utilização das ferramentas implementadas e a busca por novas tecnologias que possam melhorar ainda mais os processos da empresa.
+A implementação de ferramentas na Rede Pulso Farma tem como esperado **pagar só pelo servidor que usa (Compute Optimizer), parar de pagar por backup vencido (Data Lifecycle Manager) e descobrir desperdício novo no mesmo dia (Cost Anomaly Detection)**, o que aumentará a eficiência e a produtividade da empresa. Recomenda-se a continuidade da utilização das ferramentas implementadas e a busca por novas tecnologias que possam melhorar ainda mais os processos da empresa.
 
-Ordem recomendada: começar pela Etapa 1, porque ela mostra quanto há para economizar; seguir para a Etapa 2, que gera economia imediata e recorrente; e fechar com a Etapa 3, que protege o resultado. Em uma segunda fase, armazenamento de documentos no Amazon S3 com ciclo de vida e instâncias com processador Graviton podem ampliar a economia, mas exigem planejamento maior.
+**Plano de 30 dias**
+- Semana 1: ligar o Compute Optimizer e ler as recomendações.
+- Semana 2: criar a política de backups, depois de combinar os prazos com o jurídico.
+- Semana 3: ligar o Cost Anomaly Detection e o Budgets, com um responsável pelos alertas.
+- Semana 4: comparar a conta do mês com a do mês anterior.
+
+**Como saber se deu certo:** olhar 3 números, o custo mensal, a quantidade de servidores reduzidos e a quantidade de snapshots removidos.
+
+**Quem ganha com isso**
+- **Financeiro:** conta menor e sem surpresa no fim do mês.
+- **TI:** menos máquina sobrando e alerta antes do problema crescer.
+- **Loja:** o sistema continua rápido no horário de pico.
+- **Jurídico:** backup com regra definida, e não apagado ou guardado por acaso.
+
+Economizar na nuvem começa por parar de pagar o que ninguém usa.
 
 ## Anexos
 
